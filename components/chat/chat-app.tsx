@@ -37,6 +37,7 @@ import { ConversationHeader } from './conversation-header'
 import { DetailsPanel } from './details-panel'
 import type { MemberAction } from './group-members'
 import { IncomingCallBanner } from './incoming-call'
+import { InstallBanner } from './install-banner'
 import type { InviteTab } from './invite-dialog'
 import type { MessageActions } from './message-bubble'
 import { MessageList } from './message-list'
@@ -960,6 +961,7 @@ export default function ChatApp() {
           onMediaError={(title, message) => setAlert({ title, message })}
         />
       )}
+      <InstallBanner hidden={Boolean(currentCall || ringingCall) || mobileList} overChat={Boolean(activeChat)} onIosHelp={showInstallHelp} />
       <ToastRegion toasts={toasts} onDismiss={dismiss} />
     </main>
   )

@@ -1986,6 +1986,20 @@ span.translated-label { color: var(--soft); }
 .toast-close { display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 8px; background: transparent; color: var(--soft); }
 .app-shell .toast-close svg { width: 14px; height: 14px; }
 
+.install-banner { position: fixed; right: 16px; bottom: calc(24px + env(safe-area-inset-bottom)); left: 16px; z-index: 50; display: flex; align-items: center; gap: 12px; max-width: 480px; margin-inline: auto; padding: 12px 40px 12px 12px; border: 1px solid var(--line); border-radius: 16px; background: var(--toast); color: var(--cream); box-shadow: var(--shadow); animation: toast-in 0.2s ease-out; }
+.install-banner.is-over-chat { bottom: calc(104px + env(safe-area-inset-bottom)); }
+.install-banner img { flex: none; border-radius: 11px; }
+.install-banner-copy { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; }
+.install-banner-copy strong { font-size: 14px; }
+.install-banner-copy small { color: var(--soft); font-size: 12px; line-height: 1.35; }
+.install-banner-actions { display: flex; flex: none; gap: 8px; }
+.install-banner-actions button { padding: 7px 12px; white-space: nowrap; }
+.app-shell .install-banner-actions svg { width: 14px; height: 14px; }
+.install-banner-close { position: absolute; top: 8px; right: 8px; display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 8px; background: transparent; color: var(--soft); }
+.app-shell .install-banner-close svg { width: 14px; height: 14px; }
+.install-banner ~ .toast-region { bottom: calc(112px + env(safe-area-inset-bottom)); }
+.install-banner.is-over-chat ~ .toast-region { bottom: calc(192px + env(safe-area-inset-bottom)); }
+
 .avatar { overflow: visible; }
 .avatar-image { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
 .contact-avatar { overflow: hidden; }
@@ -2286,6 +2300,8 @@ label.new-chat-form { color: var(--soft); font-size: 12px; font-weight: 700; let
   .emoji-picker { right: -52px; width: min(300px, calc(100vw - 24px)); }
   .toast span { white-space: normal; }
   .mobile-only-link { display: inline-flex !important; }
+  .install-banner.is-over-chat { display: none; }
+  .install-banner.is-over-chat ~ .toast-region { bottom: calc(104px + env(safe-area-inset-bottom)); }
 }
 
 /* Header: Info lives in the More menu on phones and is redundant when details are always visible. */
@@ -2308,6 +2324,11 @@ label.new-chat-form { color: var(--soft); font-size: 12px; font-weight: 700; let
   .translation-banner .banner-toggle { padding: 6px 10px; font-size: 12px; }
   .translation-banner .language-button { margin-left: auto; padding: 6px 8px; }
   .toast-region { bottom: calc(84px + env(safe-area-inset-bottom)); }
+  .install-banner { flex-wrap: wrap; bottom: calc(16px + env(safe-area-inset-bottom)); }
+  .install-banner-copy { flex-basis: calc(100% - 56px); }
+  .install-banner-actions { flex: 1 1 100%; justify-content: flex-end; }
+  .install-banner ~ .toast-region { bottom: calc(150px + env(safe-area-inset-bottom)); }
+  .install-banner.is-over-chat ~ .toast-region { bottom: calc(84px + env(safe-area-inset-bottom)); }
 }
 
 @media (max-width: 380px) {
@@ -2535,6 +2556,7 @@ label.new-chat-form { color: var(--soft); font-size: 12px; font-weight: 700; let
   .emoji-picker,
   .chat-modal[open],
   .toast,
+  .install-banner,
   .chat-skeleton,
   .message-skeleton,
   .connection-banner,
