@@ -10,6 +10,9 @@ const app = defineApp({
     VAPID_PUBLIC_KEY: v.optional(v.string()),
     VAPID_PRIVATE_KEY: v.optional(v.string()),
     VAPID_SUBJECT: v.optional(v.string()),
+    LIVEKIT_URL: v.optional(v.string()),
+    LIVEKIT_API_KEY: v.optional(v.string()),
+    LIVEKIT_API_SECRET: v.optional(v.string()),
   },
 })
 

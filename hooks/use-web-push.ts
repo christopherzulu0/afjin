@@ -4,8 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useMutation } from 'convex/react'
 import { api } from '@/convex/_generated/api'
 import type { PushStatus } from '@/components/chat/sidebar'
-
-const SERVICE_WORKER = '/sw.js'
+import { SERVICE_WORKER_URL as SERVICE_WORKER, registerServiceWorker } from '@/components/sw-register'
 
 function urlBase64ToUint8Array(value: string) {
   const padding = '='.repeat((4 - (value.length % 4)) % 4)
@@ -68,7 +67,7 @@ export function useWebPush(enabled: boolean) {
         setStatus(permission === 'denied' ? 'denied' : 'default')
         return false
       }
-      const registration = await navigator.serviceWorker.register(SERVICE_WORKER)
+      const registration = await registerServiceWorker()
       await navigator.serviceWorker.ready
       const subscription =
         (await registration.pushManager.getSubscription()) ??

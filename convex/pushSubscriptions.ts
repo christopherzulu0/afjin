@@ -1,6 +1,6 @@
 import { ConvexError, v } from 'convex/values'
 import { internalMutation, internalQuery, mutation } from './_generated/server'
-import { hasBlocked, listMembers, requireUser } from './lib/auth'
+import { getMembership, hasBlocked, listMembers, requireUser } from './lib/auth'
 import { summarize } from './messages'
 import { viewersOf } from './presence'
 
@@ -67,6 +67,40 @@ export const targetsForMessage = internalQuery({
           p256dh: subscription.p256dh,
           auth: subscription.auth,
           payload: JSON.stringify({ title, body, url: `/chat?c=${conversation._id}`, tag: conversation._id }),
+        })
+      }
+    }
+    return targets
+  },
+})
+
+export const targetsForCall = internalQuery({
+  args: { callId: v.id('calls') },
+  handler: async (ctx, { callId }) => {
+    const call = await ctx.db.get('calls', callId)
+    if (!call || call.status === 'ended') return []
+    const conversation = await ctx.db.get('conversations', call.conversationId)
+    const caller = await ctx.db.get('users', call.startedBy)
+    if (!conversation || !caller) return []
+    const title = `Incoming ${call.kind} call`
+    const body = conversation.kind === 'group' ? `${caller.name} is calling ${conversation.name ?? 'the group'}` : `${caller.name} is calling you`
+    const ringing = await ctx.db
+      .query('callParticipants')
+      .withIndex('by_callId_and_userId', (q) => q.eq('callId', callId))
+      .take(60)
+
+    const targets = []
+    for (const row of ringing) {
+      if (row.state !== 'ringing') continue
+      const membership = await getMembership(ctx, conversation._id, row.userId)
+      if (!membership || membership.muted) continue
+      const subscriptions = await ctx.db.query('pushSubscriptions').withIndex('by_userId', (q) => q.eq('userId', row.userId)).take(10)
+      for (const subscription of subscriptions) {
+        targets.push({
+          endpoint: subscription.endpoint,
+          p256dh: subscription.p256dh,
+          auth: subscription.auth,
+          payload: JSON.stringify({ title, body, url: `/chat?c=${conversation._id}`, tag: `call-${callId}`, urgent: true }),
         })
       }
     }

@@ -2,13 +2,35 @@ import { ClerkProvider } from '@clerk/nextjs'
 import { shadcn } from '@clerk/ui/themes'
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
+import { DM_Sans, Playfair_Display } from 'next/font/google'
 import { ConvexClientProvider } from '@/components/convex-client-provider'
+import { ServiceWorkerRegister } from '@/components/sw-register'
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from '@/lib/site'
+import { THEME_COLORS, themeBootScript } from '@/lib/theme'
 import './globals.css'
 
+const sans = DM_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700'], display: 'swap', variable: '--font-sans' })
+const display = Playfair_Display({ subsets: ['latin'], weight: ['600', '700'], style: ['normal', 'italic'], display: 'swap', variable: '--font-display' })
+
 export const metadata: Metadata = {
-  title: 'afjini — Talk freely. Understand instantly.',
-  description: 'afjini brings thoughtful chat and automatic translation together for more meaningful conversations.',
-  generator: 'v0.app',
+  metadataBase: new URL(SITE_URL),
+  title: { default: SITE_TITLE, template: `%s · ${SITE_NAME}` },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: ['translated chat', 'multilingual messaging', 'chat translation', 'family chat across languages', 'video calls', 'group chat', 'afjini'],
+  authors: [{ name: SITE_NAME, url: SITE_URL }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  category: 'communication',
+  formatDetection: { telephone: false, email: false, address: false },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1, 'max-video-preview': -1 },
+  },
+  openGraph: { type: 'website', siteName: SITE_NAME, locale: 'en', url: '/', title: SITE_TITLE, description: SITE_DESCRIPTION },
+  twitter: { card: 'summary_large_image', title: SITE_TITLE, description: SITE_DESCRIPTION },
+  appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: 'black-translucent' },
   icons: {
     icon: [
       {
@@ -29,26 +51,33 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  colorScheme: 'dark',
-  themeColor: '#061f28',
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  interactiveWidget: 'resizes-content',
+  colorScheme: 'dark light',
+  themeColor: [
+    { media: '(prefers-color-scheme: dark)', color: THEME_COLORS.dark },
+    { media: '(prefers-color-scheme: light)', color: THEME_COLORS.light },
+  ],
 }
 
 const clerkAppearance = {
   theme: shadcn,
   variables: {
-    colorBackground: '#0a2d34',
-    colorForeground: '#f6ecd9',
-    colorNeutral: '#f6ecd9',
-    colorMuted: '#123f43',
-    colorMutedForeground: '#b7aea0',
-    colorPrimary: '#e2b85c',
-    colorPrimaryForeground: '#061f28',
-    colorInput: '#0c333a',
-    colorInputForeground: '#f6ecd9',
-    colorDanger: '#e7a28e',
-    colorRing: 'rgba(226, 184, 92, 0.5)',
-    colorModalBackdrop: 'rgba(2, 12, 16, 0.65)',
-    fontFamily: "'DM Sans', sans-serif",
+    colorBackground: 'var(--surface)',
+    colorForeground: 'var(--text)',
+    colorNeutral: 'var(--text)',
+    colorMuted: 'var(--surface-2)',
+    colorMutedForeground: 'var(--text-muted)',
+    colorPrimary: 'var(--accent)',
+    colorPrimaryForeground: 'var(--on-accent)',
+    colorInput: 'var(--input)',
+    colorInputForeground: 'var(--text)',
+    colorDanger: 'var(--danger)',
+    colorRing: 'rgba(var(--accent-rgb), 0.5)',
+    colorModalBackdrop: 'var(--backdrop)',
+    fontFamily: 'var(--font-sans), sans-serif',
     borderRadius: '12px',
     fontWeight: { normal: 400, medium: 500, semibold: 600, bold: 700 },
   },
@@ -60,11 +89,15 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${sans.variable} ${display.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
+      </head>
       <body className="antialiased">
         <ClerkProvider appearance={clerkAppearance}>
           <ConvexClientProvider>
             {children}
+            <ServiceWorkerRegister />
             {process.env.NODE_ENV === 'production' && <Analytics />}
           </ConvexClientProvider>
         </ClerkProvider>

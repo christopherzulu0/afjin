@@ -31,6 +31,9 @@ type Env = {
   readonly CONVEX_CLOUD_URL: string;
   readonly CONVEX_SITE_URL: string;
   readonly DEEPL_API_KEY: string | undefined;
+  readonly LIVEKIT_API_KEY: string | undefined;
+  readonly LIVEKIT_API_SECRET: string | undefined;
+  readonly LIVEKIT_URL: string | undefined;
   readonly VAPID_PRIVATE_KEY: string | undefined;
   readonly VAPID_PUBLIC_KEY: string | undefined;
   readonly VAPID_SUBJECT: string | undefined;

@@ -9,9 +9,11 @@ type ModalProps = {
   onClose: () => void
   children: ReactNode
   className?: string
+  role?: 'dialog' | 'alertdialog'
+  describedBy?: string
 }
 
-export function Modal({ open, title, onClose, children, className = '' }: ModalProps) {
+export function Modal({ open, title, onClose, children, className = '', role, describedBy }: ModalProps) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
 
@@ -29,7 +31,9 @@ export function Modal({ open, title, onClose, children, className = '' }: ModalP
     <dialog
       ref={ref}
       className={`chat-modal ${className}`.trim()}
+      role={role}
       aria-labelledby={titleId}
+      aria-describedby={describedBy}
       onClose={onClose}
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose()

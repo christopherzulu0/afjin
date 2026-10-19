@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import { Suspense } from 'react'
+import { SiteNav } from '@/components/site-nav'
 
 function ChatLoading() {
   return (
@@ -18,8 +19,11 @@ const ChatApp = dynamic(() => import('@/components/chat/chat-app'), { ssr: false
 
 export function ChatPage() {
   return (
-    <Suspense fallback={<ChatLoading />}>
-      <ChatApp />
-    </Suspense>
+    <div className="chat-layout">
+      <SiteNav variant="app" />
+      <Suspense fallback={<ChatLoading />}>
+        <ChatApp />
+      </Suspense>
+    </div>
   )
 }

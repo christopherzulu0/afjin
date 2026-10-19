@@ -4,7 +4,19 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { useAuth } from '@clerk/nextjs'
 import { ConvexProviderWithAuth, ConvexReactClient } from 'convex/react'
 
-const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
+// Errors thrown on purpose with ConvexError (blocked, not a member, rate limits) are shown
+// in the UI, so they're logged as warnings instead of triggering the Next.js error overlay.
+const logger = {
+  logVerbose: () => {},
+  log: (...args: unknown[]) => console.log(...args),
+  warn: (...args: unknown[]) => console.warn(...args),
+  error: (...args: unknown[]) => {
+    if (args.some((arg) => typeof arg === 'string' && arg.includes('Uncaught ConvexError'))) console.warn(...args)
+    else console.error(...args)
+  },
+}
+
+const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!, { logger })
 
 function waitForNetwork(attempt: number) {
   return new Promise<void>((resolve) => {

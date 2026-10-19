@@ -5,8 +5,10 @@ import { components } from '../_generated/api'
 export const rateLimiter = new RateLimiter(components.rateLimiter, {
   sendMessage: { kind: 'token bucket', rate: 30, period: MINUTE, capacity: 10 },
   editMessage: { kind: 'token bucket', rate: 30, period: MINUTE, capacity: 10 },
+  requestTranslations: { kind: 'token bucket', rate: 30, period: MINUTE, capacity: 10 },
   generateUploadUrl: { kind: 'token bucket', rate: 20, period: MINUTE, capacity: 6 },
   startConversation: { kind: 'token bucket', rate: 30, period: HOUR, capacity: 10 },
+  startCall: { kind: 'token bucket', rate: 30, period: HOUR, capacity: 8 },
 })
 
 export const translationPool = new Workpool(components.translationWorkpool, {

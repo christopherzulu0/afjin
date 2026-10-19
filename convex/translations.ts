@@ -17,6 +17,7 @@ export const getJob = internalQuery({
       .take(50)
     return {
       body: message.body,
+      sourceLanguage: message.sourceLanguage,
       version,
       languages: rows.filter((row) => row.status === 'pending' && row.version === version).map((row) => row.language),
     }
@@ -24,7 +25,14 @@ export const getJob = internalQuery({
 })
 
 export const save = internalMutation({
-  args: { messageId: v.id('messages'), language: v.string(), version: v.number(), status: translationStatus, text: v.optional(v.string()) },
+  args: {
+    messageId: v.id('messages'),
+    language: v.string(),
+    version: v.number(),
+    status: translationStatus,
+    text: v.optional(v.string()),
+    detectedLanguage: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const message = await ctx.db.get('messages', args.messageId)
     if (!message || messageVersion(message) !== args.version) return null
@@ -32,7 +40,7 @@ export const save = internalMutation({
       .query('translations')
       .withIndex('by_messageId_and_language', (q) => q.eq('messageId', args.messageId).eq('language', args.language))
       .unique()
-    const fields = { status: args.status, text: args.text, version: args.version }
+    const fields = { status: args.status, text: args.text, detectedLanguage: args.detectedLanguage, version: args.version }
     if (existing) await ctx.db.patch('translations', existing._id, fields)
     else await ctx.db.insert('translations', { messageId: args.messageId, language: args.language, ...fields })
     return null

@@ -335,7 +335,7 @@ export function Composer({
         <div className="pending-attachments" aria-label="Attachments to send">
           {uploads.map((upload) => (
             <div className={`pending-chip is-${upload.status}`} key={upload.id}>
-              {upload.kind === 'image' ? <img src={upload.previewUrl} alt="" /> : upload.kind === 'audio' ? <Mic /> : <FileText />}
+              {upload.kind === 'image' ? <img src={upload.previewUrl} alt="" width={56} height={56} decoding="async" /> : upload.kind === 'audio' ? <Mic /> : <FileText />}
               <span>
                 <strong>{upload.name}</strong>
                 <small>

@@ -121,7 +121,7 @@ export default function LanguageConverterPage() {
         )}
         <div className="converter-note">
           <MessageCircle />
-          <span>In afjini chats, translation happens automatically as you talk. Choose languages per conversation and keep the original one tap away.</span>
+          <span>In afjini chats, every message is translated automatically into the language each person reads in, and the original stays one tap away.</span>
           <Link href="/chat">Try it in chat <ArrowRight /></Link>
         </div>
       </section>

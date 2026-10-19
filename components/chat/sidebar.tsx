@@ -3,10 +3,14 @@
 import Link from 'next/link'
 import { useCallback, useMemo, useRef, useState, type RefObject } from 'react'
 import { UserButton } from '@clerk/nextjs'
-import { Archive, ArrowLeft, Ban, Bell, BellOff, BellRing, Copy, Home, MoreHorizontal, Plus, Search, X } from 'lucide-react'
+import { Archive, ArrowLeft, Ban, Bell, BellOff, BellRing, Copy, Download, Home, House, MoreHorizontal, Plus, QrCode, ScanQrCode, Search, Volume2, VolumeX, X } from 'lucide-react'
 import type { Conversation } from '@/lib/chat-data'
 import { listTime } from '@/lib/chat-format'
-import { useDismiss } from '@/hooks/use-dismiss'
+import { useDraft } from '@/lib/draft-store'
+import { useMenu } from '@/hooks/use-menu'
+import { useInstallPrompt } from '@/hooks/use-install-prompt'
+import { useSwipeToClose } from '@/hooks/use-swipe-to-close'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { Avatar } from './avatar'
 
 export type PushStatus = 'unsupported' | 'unconfigured' | 'default' | 'denied' | 'enabled' | 'working'
@@ -18,7 +22,6 @@ type SidebarProps = {
   loading: boolean
   activeId: string | null
   typingIn: string | null
-  drafts: Record<string, string>
   myName: string
   myLanguage: string
   myPin: string
@@ -27,14 +30,28 @@ type SidebarProps = {
   searchRef: RefObject<HTMLInputElement | null>
   mobileVisible: boolean
   pushStatus: PushStatus
+  soundOn: boolean
+  soundLocked: boolean
+  onToggleSound: () => void
   onViewChange: (view: 'inbox' | 'archived') => void
   onQueryChange: (query: string) => void
   onSelect: (id: string) => void
   onNewChat: () => void
+  onHome: () => void
   onClose: () => void
   onCopyPin: () => void
+  onOpenInvite: () => void
+  onScanQr: () => void
+  onInstallHelp: () => void
   onEnablePush: () => void
   onDisablePush: () => void
+}
+
+function ChatPreview({ chat, typing, active }: { chat: Conversation; typing: boolean; active: boolean }) {
+  const draft = useDraft(chat.id).trim()
+  if (typing) return <span className="chat-typing">typing…</span>
+  if (draft && !active) return <span><em className="chat-draft">Draft:</em> {draft}</span>
+  return <span>{chat.preview}</span>
 }
 
 const pushLabels: Record<PushStatus, string> = {
@@ -53,7 +70,6 @@ export function Sidebar({
   loading,
   activeId,
   typingIn,
-  drafts,
   myName,
   myLanguage,
   myPin,
@@ -62,12 +78,19 @@ export function Sidebar({
   searchRef,
   mobileVisible,
   pushStatus,
+  soundOn,
+  soundLocked,
+  onToggleSound,
   onViewChange,
   onQueryChange,
   onSelect,
   onNewChat,
+  onHome,
   onClose,
   onCopyPin,
+  onOpenInvite,
+  onScanQr,
+  onInstallHelp,
   onEnablePush,
   onDisablePush,
 }: SidebarProps) {
@@ -77,8 +100,11 @@ export function Sidebar({
   const notificationsRef = useRef<HTMLDivElement>(null)
   const closeProfile = useCallback(() => setProfileOpen(false), [])
   const closeNotifications = useCallback(() => setNotificationsOpen(false), [])
-  useDismiss(profileRef, profileOpen, closeProfile)
-  useDismiss(notificationsRef, notificationsOpen, closeNotifications)
+  useMenu(profileRef, profileOpen, closeProfile)
+  useMenu(notificationsRef, notificationsOpen, closeNotifications)
+  const installPrompt = useInstallPrompt()
+  const asideRef = useRef<HTMLElement>(null)
+  useSwipeToClose(asideRef, 'left', mobileVisible, onClose)
 
   const results = useMemo(() => {
     const normalized = query.trim().toLowerCase()
@@ -87,7 +113,7 @@ export function Sidebar({
   }, [conversations, query])
 
   return (
-    <aside className={`sidebar ${mobileVisible ? 'mobile-visible' : ''}`} aria-label="Conversations">
+    <aside ref={asideRef} className={`sidebar ${mobileVisible ? 'mobile-visible' : ''}`} aria-label="Conversations">
       <div className="brand-row">
         <Link href="/" className="brand-link" aria-label="afjini home">
           <div className="brand-mark">A</div>
@@ -106,7 +132,26 @@ export function Sidebar({
           <div className="popover-menu profile-menu" role="menu">
             <div className="popover-note">Your PIN <b>{myPin}</b></div>
             <button type="button" role="menuitem" onClick={() => { onCopyPin(); closeProfile() }}><Copy /> Copy my PIN</button>
+            <button type="button" role="menuitem" onClick={() => { onOpenInvite(); closeProfile() }}><QrCode /> Invite link &amp; QR code</button>
+            <button type="button" role="menuitem" onClick={() => { onScanQr(); closeProfile() }}><ScanQrCode /> Scan a QR code</button>
             <Link href="/contacts" role="menuitem" onClick={closeProfile}><Search /> Find people by PIN</Link>
+            <div className="theme-row">
+              <span aria-hidden>Theme</span>
+              <ThemeToggle itemRole="menuitemradio" />
+            </div>
+            {(installPrompt.canPrompt || installPrompt.showIosHint) && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  closeProfile()
+                  if (installPrompt.canPrompt) void installPrompt.install()
+                  else onInstallHelp()
+                }}
+              >
+                <Download /> Install afjini
+              </button>
+            )}
             <Link href="/" role="menuitem" onClick={closeProfile}><Home /> Back to home</Link>
           </div>
         )}
@@ -132,13 +177,21 @@ export function Sidebar({
       </label>
 
       <div className="chat-list">
+        <button
+          type="button"
+          className={`chat-item home-item ${activeId === null ? 'active' : ''}`}
+          aria-current={activeId === null ? 'page' : undefined}
+          onClick={onHome}
+        >
+          <span className="home-item-icon" aria-hidden><House /></span>
+          <span className="chat-info"><strong>Home</strong><span>Overview, unread and pinned</span></span>
+        </button>
         {loading && (
           <div className="chat-skeletons" aria-label="Loading conversations">
             {[0, 1, 2].map((index) => <div className="chat-skeleton" key={index} />)}
           </div>
         )}
         {!loading && results.map((chat) => {
-          const draft = drafts[chat.id]?.trim()
           return (
             <button
               type="button"
@@ -150,13 +203,7 @@ export function Sidebar({
               <Avatar initials={chat.initials} color={chat.color} imageUrl={chat.imageUrl} online={chat.online && !chat.blocked} small />
               <span className="chat-info">
                 <strong>{chat.name}</strong>
-                {typingIn === chat.id ? (
-                  <span className="chat-typing">typing…</span>
-                ) : draft && activeId !== chat.id ? (
-                  <span><em className="chat-draft">Draft:</em> {draft}</span>
-                ) : (
-                  <span>{chat.preview}</span>
-                )}
+                <ChatPreview chat={chat} typing={typingIn === chat.id} active={activeId === chat.id} />
               </span>
               <span className="chat-meta">
                 <time>{listTime(chat.lastMessageAt)}</time>
@@ -187,8 +234,9 @@ export function Sidebar({
               <>
                 <Plus />
                 <strong>No conversations yet</strong>
-                <span>Share your PIN <b>{myPin}</b> or add someone by theirs.</span>
+                <span>Share your invite link or PIN <b>{myPin}</b>, or add someone by theirs.</span>
                 <button type="button" onClick={onNewChat}>Start a new chat</button>
+                <button type="button" onClick={onOpenInvite}>Share my invite link</button>
               </>
             )}
           </div>
@@ -206,6 +254,10 @@ export function Sidebar({
           </button>
           {notificationsOpen && (
             <div className="popover-menu notifications-menu" role="menu">
+              <button type="button" role="menuitemcheckbox" aria-checked={soundOn} className="sound-toggle" onClick={onToggleSound}>
+                {soundOn ? <Volume2 /> : <VolumeX />} Message sounds{' '}
+                <span className="toggle-state">{soundLocked ? 'On (tap to enable)' : soundOn ? 'On' : 'Off'}</span>
+              </button>
               <button
                 type="button"
                 role="menuitem"

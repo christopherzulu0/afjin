@@ -1,11 +1,17 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
-import { Archive, ArchiveRestore, Ban, Bell, BellOff, ChevronDown, FileText, Globe2, LogOut, Mic, Phone, Search, UserPlus, Video, X } from 'lucide-react'
-import { normalizePin, pinPattern, type Attachment, type Conversation } from '@/lib/chat-data'
+import { Archive, ArchiveRestore, Ban, Bell, BellOff, ChevronDown, FileText, Globe2, LogOut, Mic, Phone, Pin, PinOff, Search, Video, X } from 'lucide-react'
+import { useRef } from 'react'
+import type { Id } from '@/convex/_generated/dataModel'
+import type { CallInChat } from '@/hooks/use-calls'
+import { useSwipeToClose } from '@/hooks/use-swipe-to-close'
+import type { Attachment, Conversation, Member } from '@/lib/chat-data'
 import { firstName } from '@/lib/chat-format'
 import { languages } from '@/lib/speech'
 import { Avatar } from './avatar'
+import { GroupMembers, type MemberAction } from './group-members'
+import { canPinIn } from './message-bubble'
+import { usePinnedMessages } from './pinned-bar'
 
 type DetailsPanelProps = {
   chat: Conversation
@@ -13,6 +19,8 @@ type DetailsPanelProps = {
   open: boolean
   media: Attachment[]
   onClose: () => void
+  call: CallInChat | null
+  inCall: boolean
   onCall: (kind: 'voice' | 'video') => void
   onSearch: () => void
   onToggleTranslation: () => void
@@ -22,7 +30,12 @@ type DetailsPanelProps = {
   onBlock: () => void
   onLeave: () => void
   onAddMember: (pin: string) => Promise<boolean>
+  onMemberAction: (action: MemberAction, member: Member) => void
+  onUnban: (userId: string, name: string) => void
   onOpenMedia: (attachment?: Attachment) => void
+  onJumpToMessage: (messageId: string) => void
+  onUnpin: (messageId: string) => void
+  notify: (message: string) => void
 }
 
 export function DetailsPanel({
@@ -30,6 +43,8 @@ export function DetailsPanel({
   myLanguage,
   open,
   media,
+  call,
+  inCall,
   onClose,
   onCall,
   onSearch,
@@ -40,25 +55,22 @@ export function DetailsPanel({
   onBlock,
   onLeave,
   onAddMember,
+  onMemberAction,
+  onUnban,
   onOpenMedia,
+  onJumpToMessage,
+  onUnpin,
+  notify,
 }: DetailsPanelProps) {
-  const [pin, setPin] = useState('')
-  const [adding, setAdding] = useState(false)
   const name = firstName(chat.name)
   const preview = media.slice(-3).reverse()
-  const validPin = pinPattern.test(normalizePin(pin))
-
-  async function addMember(event: FormEvent) {
-    event.preventDefault()
-    if (!validPin) return
-    setAdding(true)
-    const ok = await onAddMember(normalizePin(pin))
-    setAdding(false)
-    if (ok) setPin('')
-  }
+  const callsOff = chat.blocked || chat.blockedMe
+  const panelRef = useRef<HTMLElement>(null)
+  const pins = usePinnedMessages(chat.id as Id<'conversations'>)
+  useSwipeToClose(panelRef, 'right', open, onClose)
 
   return (
-    <aside className={`details-panel ${open ? 'details-open' : ''}`} aria-label="Chat details">
+    <aside ref={panelRef} className={`details-panel ${open ? 'details-open' : ''}`} aria-label="Chat details">
       <div className="details-top">
         <span>Chat details</span>
         <button type="button" className="icon-button" aria-label="Close details" onClick={onClose}><X /></button>
@@ -72,8 +84,16 @@ export function DetailsPanel({
         </span>
       </div>
       <div className="detail-actions">
-        <button type="button" onClick={() => onCall('voice')}><Phone /><span>Call</span></button>
-        <button type="button" onClick={() => onCall('video')}><Video /><span>Video</span></button>
+        {call ? (
+          <button type="button" className={`detail-join-call ${inCall ? 'is-joined' : ''}`} onClick={() => onCall(call.kind)}>
+            {call.kind === 'video' ? <Video /> : <Phone />}<span>{inCall ? 'Return to call' : 'Join call'}</span>
+          </button>
+        ) : (
+          <>
+            <button type="button" disabled={callsOff} onClick={() => onCall('voice')}><Phone /><span>Call</span></button>
+            <button type="button" disabled={callsOff} onClick={() => onCall('video')}><Video /><span>Video</span></button>
+          </>
+        )}
         <button type="button" onClick={onSearch}><Search /><span>Search</span></button>
       </div>
 
@@ -113,21 +133,25 @@ export function DetailsPanel({
       </div>
 
       {chat.group && (
-        <div className="detail-section">
-          <h3>Members <small className="member-count">{chat.members.length + 1}</small></h3>
-          <ul className="member-list" aria-label="Members">
-            <li className="member-self"><span className="member-you">You</span><span><small>Reads in {myLanguage}</small></span></li>
-            {chat.members.map((member) => (
-              <li key={member.id}>
-                <Avatar initials={member.initials} color={member.color} imageUrl={member.imageUrl} small />
-                <span><strong>{member.name}</strong><small>Reads in {member.language}</small></span>
+        <GroupMembers chat={chat} myLanguage={myLanguage} onAddMember={onAddMember} onMemberAction={onMemberAction} onUnban={onUnban} notify={notify} />
+      )}
+
+      {pins.length > 0 && (
+        <div className="detail-section pinned-list">
+          <h3><Pin /> Pinned messages <small>{pins.length}</small></h3>
+          <ul>
+            {pins.map((pin) => (
+              <li key={pin._id}>
+                <button type="button" className="pinned-item" onClick={() => onJumpToMessage(pin._id)}>
+                  <strong>{firstName(pin.senderName)}</strong>
+                  <span>{pin.summary}</span>
+                </button>
+                {canPinIn(chat) && (
+                  <button type="button" className="icon-button" aria-label={`Unpin message from ${pin.senderName}`} onClick={() => onUnpin(pin._id)}><PinOff /></button>
+                )}
               </li>
             ))}
           </ul>
-          <form className="add-member" onSubmit={addMember}>
-            <input value={pin} onChange={(event) => setPin(event.target.value)} placeholder="Add by PIN, e.g. AFJ-7K2P" aria-label="Add a member by PIN" />
-            <button type="submit" disabled={!validPin || adding} aria-label="Add member"><UserPlus /></button>
-          </form>
         </div>
       )}
 
@@ -140,7 +164,7 @@ export function DetailsPanel({
           <div className="media-grid">
             {preview.map((attachment) => (
               <button type="button" className="media-thumb" key={attachment.id} onClick={() => onOpenMedia(attachment)} aria-label={`Open ${attachment.name}`}>
-                {attachment.kind === 'image' && attachment.url ? <img src={attachment.url} alt="" /> : attachment.kind === 'audio' ? <Mic /> : <FileText />}
+                {attachment.kind === 'image' && attachment.url ? <img src={attachment.url} alt="" width={64} height={64} loading="lazy" decoding="async" /> : attachment.kind === 'audio' ? <Mic /> : <FileText />}
               </button>
             ))}
           </div>

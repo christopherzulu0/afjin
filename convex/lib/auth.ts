@@ -30,7 +30,7 @@ export async function getMembership(ctx: Ctx, conversationId: Id<'conversations'
 
 export async function requireMember(ctx: Ctx, conversationId: Id<'conversations'>, userId: Id<'users'>) {
   const membership = await getMembership(ctx, conversationId, userId)
-  if (!membership) throw new ConvexError('You are not part of this conversation.')
+  if (!membership) throw new ConvexError({ code: 'not_member', message: 'You are not part of this conversation.' })
   return membership
 }
 
@@ -51,6 +51,16 @@ export async function hasBlocked(ctx: Ctx, blockerId: Id<'users'>, blockedId: Id
 
 export async function isBlockedBetween(ctx: Ctx, a: Id<'users'>, b: Id<'users'>) {
   return (await hasBlocked(ctx, a, b)) || (await hasBlocked(ctx, b, a))
+}
+
+export const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+
+export function randomCode(length: number) {
+  const bytes = new Uint8Array(length)
+  crypto.getRandomValues(bytes)
+  let code = ''
+  for (const byte of bytes) code += CODE_ALPHABET[byte % CODE_ALPHABET.length]
+  return code
 }
 
 export function normalizePin(pin: string) {

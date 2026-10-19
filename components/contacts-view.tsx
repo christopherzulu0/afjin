@@ -3,23 +3,31 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useQuery } from 'convex/react'
-import { ArrowRight, Check, Copy, Globe2, Search, ShieldCheck, UserPlus } from 'lucide-react'
+import { ArrowRight, Check, Copy, Globe2, QrCode as QrIcon, Search, ShieldCheck, UserPlus } from 'lucide-react'
+import dynamic from 'next/dynamic'
 import { SiteNav } from '@/components/site-nav'
 import { SiteFooter } from '@/components/site-footer'
 import { api } from '@/convex/_generated/api'
 import { useCurrentUser } from '@/hooks/use-convex-chat'
+import { useMyInvite } from '@/hooks/use-my-invite'
 import { colorFor, initialsFor, normalizePin, pinPattern } from '@/lib/chat-data'
+
+const QrCode = dynamic(() => import('@/components/qr-code').then((module) => module.QrCode), { ssr: false })
 
 export function ContactsView() {
   const { me } = useCurrentUser()
   const [query, setQuery] = useState('')
   const [copied, setCopied] = useState(false)
+  const [showQr, setShowQr] = useState(false)
+  const [shortcut, setShortcut] = useState('⌘ K')
+  const invite = useMyInvite(Boolean(me) && showQr)
   const searchRef = useRef<HTMLInputElement>(null)
   const pin = normalizePin(query)
   const valid = pinPattern.test(pin)
   const result = useQuery(api.users.findByPin, me && valid ? { pin } : 'skip')
 
   useEffect(() => {
+    if (!/Mac|iPhone|iPad/.test(navigator.platform)) setShortcut('Ctrl K')
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault()
@@ -67,7 +75,7 @@ export function ContactsView() {
               placeholder="AFJ-7K2P"
               autoComplete="off"
             />
-            <kbd>⌘ K</kbd>
+            <kbd aria-label={`Keyboard shortcut ${shortcut}`}>{shortcut}</kbd>
           </div>
           <span className="search-hint">Use the 8-character PIN they shared with you. Only an exact PIN shows a person.</span>
         </div>
@@ -77,14 +85,14 @@ export function ContactsView() {
         <div className="contacts-results-head">
           <div>
             <span className="section-kicker">Find a connection</span>
-            <h2>{heading}</h2>
+            <h2 aria-live="polite">{heading}</h2>
           </div>
         </div>
         <div className="contact-results">
           {result && !result.isSelf ? (
             <article className="contact-result">
               <div className={`contact-avatar contact-${colorFor(result._id)}`}>
-                {result.imageUrl ? <img src={result.imageUrl} alt="" className="avatar-image" /> : initialsFor(result.name)}
+                {result.imageUrl ? <img src={result.imageUrl} alt="" className="avatar-image" width={52} height={52} decoding="async" /> : initialsFor(result.name)}
               </div>
               <div className="contact-result-copy">
                 <h3>{result.name}</h3>
@@ -119,15 +127,25 @@ export function ContactsView() {
           <div className="pin-badge">
             <span>YOUR AFJINI PIN</span>
             <strong>{me?.pin ?? '…'}</strong>
-            <button type="button" onClick={copyPin} aria-label="Copy afjini PIN" disabled={!me}>
+            <button type="button" onClick={copyPin} aria-label={copied ? 'afjini PIN copied' : 'Copy afjini PIN'} disabled={!me}>
               {copied ? <Check /> : <Copy />} {copied ? 'Copied' : 'Copy PIN'}
             </button>
+            <span className="sr-only" aria-live="polite">{copied ? 'Your afjini PIN was copied' : ''}</span>
+            <button type="button" onClick={() => setShowQr((value) => !value)} aria-expanded={showQr} disabled={!me}>
+              <QrIcon /> {showQr ? 'Hide QR code' : 'Show my QR code'}
+            </button>
           </div>
+          {showQr && (
+            <div className="contacts-qr">
+              {invite.url ? <QrCode value={invite.url} label="QR code for your afjini invite link" fileName={`afjini-${me?.pin ?? 'invite'}`} /> : <div className="qr-card qr-placeholder" aria-busy="true" />}
+              <small>Scanning this opens your invite link, so people can message you without typing your PIN.</small>
+            </div>
+          )}
         </div>
         <div className="pin-steps">
-          <div><span>01</span><b>Share your PIN</b><small>Send it in person or another trusted channel.</small></div>
-          <div><span>02</span><b>They search afjini</b><small>Your profile appears only when they have your exact PIN.</small></div>
-          <div><span>03</span><b>Start talking</b><small>Connect, pick your language, and let the conversation flow.</small></div>
+          <div><span aria-hidden="true">01</span><b>Share your PIN or QR code</b><small>Send it in person or through another channel you trust.</small></div>
+          <div><span aria-hidden="true">02</span><b>They search afjini</b><small>Your profile appears only when they enter your exact PIN or open your invite link.</small></div>
+          <div><span aria-hidden="true">03</span><b>Start talking</b><small>Each of you reads in your own language, and the conversation just flows.</small></div>
         </div>
       </section>
 

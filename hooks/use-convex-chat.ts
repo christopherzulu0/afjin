@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { ConvexError } from 'convex/values'
 import type { FunctionReturnType } from 'convex/server'
@@ -29,14 +29,29 @@ export function rememberPreview(storageId: string, url: string) {
   localPreviews.set(storageId, url)
 }
 
+export type ErrorCode = 'blocked' | 'not_member' | 'rate_limited' | 'banned' | 'invalid_invite' | 'calls_unconfigured' | 'call_ended'
+
+const KNOWN_CODES = new Set<string>(['blocked', 'not_member', 'banned', 'invalid_invite', 'calls_unconfigured', 'call_ended'])
+
+export function errorCode(error: unknown): ErrorCode | null {
+  if (!(error instanceof ConvexError)) return null
+  const data: unknown = error.data
+  if (!data || typeof data !== 'object') return null
+  if ((data as { kind?: string }).kind === 'RateLimited') return 'rate_limited'
+  const code = (data as { code?: string }).code
+  return code && KNOWN_CODES.has(code) ? (code as ErrorCode) : null
+}
+
 export function errorMessage(error: unknown, fallback = 'Something went wrong. Check your connection and try again.') {
   if (error instanceof ConvexError) {
     const data: unknown = error.data
     if (typeof data === 'string') return data
-    if (data && typeof data === 'object' && (data as { kind?: string }).kind === 'RateLimited') {
+    if (errorCode(error) === 'rate_limited') {
       const retryAfter = (data as { retryAfter?: number }).retryAfter ?? 1000
       return `You’re going a little fast. Try again in ${Math.max(1, Math.ceil(retryAfter / 1000))}s.`
     }
+    const message = data && typeof data === 'object' ? (data as { message?: unknown }).message : undefined
+    if (typeof message === 'string') return message
   }
   return fallback
 }
@@ -73,16 +88,18 @@ export function useCurrentUser() {
 }
 
 function translationState(value: { status: string } | null): TranslationState {
-  if (!value) return 'none'
+  if (!value || value.status === 'same') return 'none'
   if (value.status === 'done') return 'done'
-  if (value.status === 'pending') return 'pending'
+  if (value.status === 'pending' || value.status === 'missing') return 'pending'
   return 'unavailable'
 }
 
 export function toConversation(doc: ConversationDoc): Conversation {
   let preview = 'Say hello 👋'
+  const unansweredCall = doc.lastMessagePreview?.match(/^(Missed|Declined) (voice|video) call$/)
   if (doc.lastMessagePreview) {
-    if (doc.lastMessageFromMe) preview = `You: ${doc.lastMessagePreview}`
+    if (doc.lastMessageFromMe && unansweredCall) preview = `You called · ${unansweredCall[1] === 'Missed' ? 'No answer' : 'Declined'}`
+    else if (doc.lastMessageFromMe) preview = `You: ${doc.lastMessagePreview}`
     else if (doc.kind === 'group' && doc.lastMessageSenderName) preview = `${firstNameOf(doc.lastMessageSenderName)}: ${doc.lastMessagePreview}`
     else preview = doc.lastMessagePreview
   }
@@ -102,7 +119,9 @@ export function toConversation(doc: ConversationDoc): Conversation {
       color: colorFor(member._id),
       language: member.language,
       imageUrl: member.imageUrl ?? null,
+      role: member.role,
     })),
+    myRole: doc.myRole,
     language: doc.other?.language ?? '',
     translationEnabled: doc.translationEnabled,
     muted: doc.muted,
@@ -121,10 +140,12 @@ export function toMessage(doc: MessageDoc, meId: string): Message {
   return {
     id: doc._id,
     from: mine ? 'me' : 'them',
+    senderId: doc.senderId,
     author: doc.senderName,
     authorImage: doc.senderImage,
     text: doc.body,
     sourceLanguage: doc.sourceLanguage,
+    translatedFrom: doc.translation?.detectedLanguage ?? doc.outgoingTranslation?.detectedLanguage ?? doc.sourceLanguage,
     translatedText: doc.translation?.text ?? undefined,
     translationState: translationState(doc.translation),
     outgoingTranslation: doc.outgoingTranslation?.text ?? undefined,
@@ -145,6 +166,10 @@ export function toMessage(doc: MessageDoc, meId: string): Message {
     })),
     edited: doc.edited,
     deleted: doc.deleted,
+    call: doc.call ?? undefined,
+    pinned: doc.pinned,
+    forwarded: doc.forwarded,
+    linkPreview: doc.linkPreview ?? undefined,
   }
 }
 
@@ -161,13 +186,52 @@ export function useConversationLists(enabled: boolean) {
   )
 }
 
-export function useConversationMessages(conversationId: Id<'conversations'> | null, meId: string | null) {
+export function useConversationMessages(
+  conversationId: Id<'conversations'> | null,
+  meId: string | null,
+  myLanguage: string,
+  translationEnabled: boolean,
+) {
   const { results, status, loadMore } = usePaginatedQuery(
     api.messages.list,
     conversationId ? { conversationId } : 'skip',
     { initialNumItems: PAGE_SIZE },
   )
-  const messages = useMemo(() => (meId ? [...results].reverse().map((doc) => toMessage(doc, meId)) : []), [results, meId])
+  const requestTranslations = useMutation(api.messages.requestTranslations)
+  const requested = useRef(new Set<string>())
+
+  useEffect(() => {
+    if (!translationEnabled) return
+    const missing: { id: Id<'messages'>; key: string }[] = []
+    for (const doc of results) {
+      if (optimisticIds.has(doc._id)) continue
+      const language =
+        doc.translation?.status === 'missing' ? myLanguage : doc.outgoingTranslation?.status === 'missing' ? doc.outgoingTranslation.language : null
+      if (!language) continue
+      const key = `${doc._id}:${language}`
+      if (!requested.current.has(key)) missing.push({ id: doc._id, key })
+    }
+    const batch = missing.slice(0, 50)
+    if (!batch.length) return
+    batch.forEach(({ key }) => requested.current.add(key))
+    requestTranslations({ messageIds: batch.map(({ id }) => id) }).catch(() => batch.forEach(({ key }) => requested.current.delete(key)))
+  }, [results, myLanguage, translationEnabled, requestTranslations])
+
+  const cache = useRef(new Map<string, { key: string; message: Message }>())
+  const messages = useMemo(() => {
+    if (!meId) return []
+    const next = new Map<string, { key: string; message: Message }>()
+    const list = [...results].reverse().map((doc) => {
+      const message = toMessage(doc, meId)
+      const key = JSON.stringify(message)
+      const previous = cache.current.get(message.id)
+      const kept = previous && previous.key === key ? previous.message : message
+      next.set(message.id, { key, message: kept })
+      return kept
+    })
+    cache.current = next
+    return list
+  }, [results, meId])
   return {
     messages,
     loading: status === 'LoadingFirstPage',
@@ -218,6 +282,10 @@ export function useChatActions() {
   const createGroup = useMutation(api.conversations.createGroup)
   const addMembers = useMutation(api.conversations.addMembers)
   const leave = useMutation(api.conversations.leave)
+  const removeMember = useMutation(api.conversations.removeMember)
+  const banMember = useMutation(api.conversations.banMember)
+  const unbanMember = useMutation(api.conversations.unbanMember)
+  const setRole = useMutation(api.conversations.setRole)
   const setLanguage = useMutation(api.users.setLanguage)
   const generateUploadUrl = useMutation(api.files.generateUploadUrl)
 
@@ -242,6 +310,10 @@ export function useChatActions() {
           senderImage: me.imageUrl ?? null,
           sourceLanguage: me.language,
           readByAll: false,
+          call: null,
+          pinned: false,
+          forwarded: false,
+          linkPreview: null,
           body,
           deleted: false,
           edited: false,
@@ -321,10 +393,18 @@ export function useChatActions() {
       createGroup,
       addMembers,
       leave,
+      removeMember,
+      banMember,
+      unbanMember,
+      setRole,
       setLanguage,
       generateUploadUrl,
     }
   }, [
+    removeMember,
+    banMember,
+    unbanMember,
+    setRole,
     sendMutation,
     reactMutation,
     editMutation,

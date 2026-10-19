@@ -2,9 +2,10 @@
 
 import { useCallback, useRef, useState } from 'react'
 import { Archive, ArchiveRestore, Ban, Bell, BellOff, Info, LogOut, Menu, MoreVertical, Phone, Search, Video } from 'lucide-react'
+import type { CallInChat } from '@/hooks/use-calls'
 import type { Conversation } from '@/lib/chat-data'
 import { firstName } from '@/lib/chat-format'
-import { useDismiss } from '@/hooks/use-dismiss'
+import { useMenu } from '@/hooks/use-menu'
 import { Avatar } from './avatar'
 
 type ConversationHeaderProps = {
@@ -12,6 +13,8 @@ type ConversationHeaderProps = {
   typingAuthor?: string
   onOpenList: () => void
   onOpenDetails: () => void
+  call: CallInChat | null
+  inCall: boolean
   onCall: (kind: 'voice' | 'video') => void
   onSearch: () => void
   onToggleMute: () => void
@@ -20,16 +23,17 @@ type ConversationHeaderProps = {
   onLeave: () => void
 }
 
-export function ConversationHeader({ chat, typingAuthor, onOpenList, onOpenDetails, onCall, onSearch, onToggleMute, onToggleArchive, onBlock, onLeave }: ConversationHeaderProps) {
+export function ConversationHeader({ chat, typingAuthor, call, inCall, onOpenList, onOpenDetails, onCall, onSearch, onToggleMute, onToggleArchive, onBlock, onLeave }: ConversationHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const closeMenu = useCallback(() => setMenuOpen(false), [])
-  useDismiss(menuRef, menuOpen, closeMenu)
+  useMenu(menuRef, menuOpen, closeMenu)
 
   let status = chat.online ? 'Online now' : 'Offline'
   if (chat.group) status = `${(chat.members?.length ?? 0) + 1} members · ${chat.members?.map((member) => firstName(member.name)).join(', ')}`
   if (typingAuthor) status = chat.group ? `${firstName(typingAuthor)} is typing…` : 'typing…'
   if (chat.blocked) status = 'Blocked'
+  const callsOff = chat.blocked || chat.blockedMe
 
   function run(action: () => void) {
     action()
@@ -49,13 +53,22 @@ export function ConversationHeader({ chat, typingAuthor, onOpenList, onOpenDetai
         </span>
       </button>
       <div className="header-actions">
-        <button className="icon-button header-call" aria-label="Start video call" onClick={() => onCall('video')}><Video /></button>
-        <button className="icon-button header-call" aria-label="Start voice call" onClick={() => onCall('voice')}><Phone /></button>
+        {call ? (
+          <button type="button" className={`header-join-call ${inCall ? 'is-joined' : ''}`} onClick={() => onCall(call.kind)}>
+            {call.kind === 'video' ? <Video /> : <Phone />} <span>{inCall ? 'In call' : 'Join call'}</span>
+          </button>
+        ) : (
+          <>
+            <button className="icon-button header-call" aria-label="Start video call" disabled={callsOff} onClick={() => onCall('video')}><Video /></button>
+            <button className="icon-button header-call" aria-label="Start voice call" disabled={callsOff} onClick={() => onCall('voice')}><Phone /></button>
+          </>
+        )}
         <button className="icon-button header-info" aria-label="Conversation information" onClick={onOpenDetails}><Info /></button>
         <div className="menu-anchor" ref={menuRef}>
           <button className="icon-button" aria-label="More options" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}><MoreVertical /></button>
           {menuOpen && (
             <div className="popover-menu header-menu" role="menu">
+              <button type="button" role="menuitem" onClick={() => run(onOpenDetails)}><Info /> Chat info</button>
               <button type="button" role="menuitem" onClick={() => run(onSearch)}><Search /> Search in chat</button>
               <button type="button" role="menuitem" onClick={() => run(onToggleMute)}>
                 {chat.muted ? <Bell /> : <BellOff />} {chat.muted ? 'Unmute notifications' : 'Mute notifications'}

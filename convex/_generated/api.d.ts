@@ -8,11 +8,17 @@
  * @module
  */
 
+import type * as calls from "../calls.js";
 import type * as conversations from "../conversations.js";
 import type * as files from "../files.js";
+import type * as http from "../http.js";
+import type * as invites from "../invites.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_groups from "../lib/groups.js";
 import type * as lib_languages from "../lib/languages.js";
 import type * as lib_limits from "../lib/limits.js";
+import type * as lib_linkPreview from "../lib/linkPreview.js";
+import type * as linkPreviews from "../linkPreviews.js";
 import type * as messages from "../messages.js";
 import type * as presence from "../presence.js";
 import type * as push from "../push.js";
@@ -28,11 +34,17 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  calls: typeof calls;
   conversations: typeof conversations;
   files: typeof files;
+  http: typeof http;
+  invites: typeof invites;
   "lib/auth": typeof lib_auth;
+  "lib/groups": typeof lib_groups;
   "lib/languages": typeof lib_languages;
   "lib/limits": typeof lib_limits;
+  "lib/linkPreview": typeof lib_linkPreview;
+  linkPreviews: typeof linkPreviews;
   messages: typeof messages;
   presence: typeof presence;
   push: typeof push;

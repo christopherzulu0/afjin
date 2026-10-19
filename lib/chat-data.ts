@@ -19,13 +19,17 @@ export type TranslationState = 'none' | 'pending' | 'done' | 'unavailable'
 
 export type ReplyPreview = { id: string; from: 'me' | 'them'; author: string; summary: string }
 
+export type CallLog = { kind: 'voice' | 'video'; outcome: 'missed' | 'declined' | 'ended'; durationMs: number }
+
 export type Message = {
   id: string
   from: 'me' | 'them'
+  senderId: string
   author: string
   authorImage?: string | null
   text: string
   sourceLanguage: string
+  translatedFrom: string
   translatedText?: string
   translationState: TranslationState
   outgoingTranslation?: string
@@ -37,9 +41,17 @@ export type Message = {
   attachments: Attachment[]
   edited?: boolean
   deleted?: boolean
+  call?: CallLog
+  pinned?: boolean
+  forwarded?: boolean
+  linkPreview?: LinkPreview
 }
 
-export type Member = { id: string; name: string; initials: string; color: AvatarColor; language: string; imageUrl?: string | null }
+export type LinkPreview = { url: string; title: string; description?: string; image?: string; siteName?: string }
+
+export type MemberRole = 'owner' | 'admin' | 'member'
+
+export type Member = { id: string; name: string; initials: string; color: AvatarColor; language: string; imageUrl?: string | null; role: MemberRole }
 
 export type Conversation = {
   id: string
@@ -51,6 +63,7 @@ export type Conversation = {
   online: boolean
   group: boolean
   members: Member[]
+  myRole: MemberRole
   language: string
   translationEnabled: boolean
   muted: boolean

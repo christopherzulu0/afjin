@@ -1,14 +1,22 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ArrowDown, Globe2 } from 'lucide-react'
 import type { Conversation, Message } from '@/lib/chat-data'
 import { dayLabel, firstName, startOfDay } from '@/lib/chat-format'
 import { Avatar } from './avatar'
-import { MessageBubble, type MessageActions } from './message-bubble'
+import { scrollBehavior } from '@/lib/motion'
+import { MessageBubble, displayedText, type MessageActions } from './message-bubble'
+import { MessageSheet } from './message-sheet'
 
 const GROUP_WINDOW = 5 * 60_000
 const LOAD_MORE_THRESHOLD = 120
+
+function announce(message: Message, chat: Conversation) {
+  const text = displayedText(message, chat)
+  const body = message.call ? 'Call update' : text ? text.slice(0, 140) : message.attachments.length ? 'Sent an attachment' : 'New message'
+  return `${firstName(message.author)}: ${body}`
+}
 
 type MessageListProps = {
   chat: Conversation
@@ -45,6 +53,19 @@ export function MessageList({
   const heightBeforeLoad = useRef<number | null>(null)
   const [showJump, setShowJump] = useState(false)
   const [menuId, setMenuId] = useState<string | null>(null)
+  const [sheetId, setSheetId] = useState<string | null>(null)
+  const [announcement, setAnnouncement] = useState('')
+  const sheetMessage = sheetId ? messages.find((message) => message.id === sheetId && !message.deleted) ?? null : null
+
+  const changeMenu = useCallback((messageId: string, open: boolean) => {
+    if (open && window.matchMedia('(hover: none)').matches) {
+      setMenuId(null)
+      setSheetId(messageId)
+      return
+    }
+    setMenuId(open ? messageId : null)
+  }, [])
+  const closeSheet = useCallback(() => setSheetId(null), [])
 
   function scrollToBottom(behavior: ScrollBehavior) {
     const container = containerRef.current
@@ -67,6 +88,7 @@ export function MessageList({
     firstId.current = undefined
     heightBeforeLoad.current = null
     setMenuId(null)
+    setSheetId(null)
     atBottom.current = true
     // Only re-run when switching conversations.
   }, [chat.id])
@@ -84,16 +106,16 @@ export function MessageList({
       container.scrollTop = container.scrollHeight
     } else if (newLast !== lastId.current) {
       const latest = messages[messages.length - 1]
-      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      if (atBottom.current || latest.from === 'me') scrollToBottom(reduceMotion ? 'auto' : 'smooth')
+      if (atBottom.current || latest.from === 'me') scrollToBottom(scrollBehavior())
       else setShowJump(true)
+      if (latest.from === 'them' && !latest.deleted) setAnnouncement(announce(latest, chat))
     }
     firstId.current = newFirst
     lastId.current = newLast
   }, [messages])
 
   useEffect(() => {
-    if (typingAuthor && atBottom.current) scrollToBottom('smooth')
+    if (typingAuthor && atBottom.current) scrollToBottom(scrollBehavior())
   }, [typingAuthor])
 
   useEffect(() => {
@@ -108,7 +130,7 @@ export function MessageList({
 
   useEffect(() => {
     if (!currentMatchId) return
-    document.getElementById(`msg-${currentMatchId}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    document.getElementById(`msg-${currentMatchId}`)?.scrollIntoView({ block: 'center', behavior: scrollBehavior() })
   }, [currentMatchId])
 
   useEffect(() => {
@@ -134,17 +156,21 @@ export function MessageList({
     const previous = messages[index - 1]
     const next = messages[index + 1]
     const sameDayAsPrevious = previous && startOfDay(previous.createdAt) === startOfDay(message.createdAt)
-    const joinsPrevious = Boolean(sameDayAsPrevious && previous.from === message.from && previous.author === message.author && message.createdAt - previous.createdAt < GROUP_WINDOW)
-    const joinsNext = Boolean(next && startOfDay(next.createdAt) === startOfDay(message.createdAt) && next.from === message.from && next.author === message.author && next.createdAt - message.createdAt < GROUP_WINDOW)
+    const joinsPrevious = Boolean(sameDayAsPrevious && !previous.call && !message.call && previous.senderId === message.senderId && message.createdAt - previous.createdAt < GROUP_WINDOW)
+    const joinsNext = Boolean(next && !next.call && !message.call && startOfDay(next.createdAt) === startOfDay(message.createdAt) && next.senderId === message.senderId && next.createdAt - message.createdAt < GROUP_WINDOW)
     return { message, showDay: !sameDayAsPrevious, joinsPrevious, joinsNext }
   })
 
   return (
     <div className="message-area-wrap">
+      <p className="sr-only" aria-live="polite" aria-atomic="true">{announcement}</p>
       <div
         className="message-area"
+        id="messages"
+        tabIndex={-1}
         ref={containerRef}
         role="log"
+        aria-live="off"
         aria-label={`Messages with ${chat.name}`}
         aria-busy={loading}
         onScroll={(event) => {
@@ -192,7 +218,7 @@ export function MessageList({
               highlight={highlight}
               isCurrentMatch={currentMatchId === message.id}
               menuOpen={menuId === message.id}
-              onMenuChange={(open) => setMenuId(open ? message.id : null)}
+              onMenuChange={changeMenu}
               actions={actions}
             />
           </div>
@@ -205,10 +231,11 @@ export function MessageList({
         )}
       </div>
       {showJump && (
-        <button type="button" className="jump-button" onClick={() => scrollToBottom('smooth')}>
+        <button type="button" className="jump-button" onClick={() => scrollToBottom(scrollBehavior())}>
           <ArrowDown /> New messages
         </button>
       )}
+      <MessageSheet message={sheetMessage} chat={chat} myLanguage={myLanguage} actions={actions} onClose={closeSheet} />
     </div>
   )
 }

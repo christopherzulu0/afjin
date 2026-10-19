@@ -1,29 +1,54 @@
 'use client'
 
 import { ArrowLeft, Download, FileText } from 'lucide-react'
-import type { Attachment, Conversation } from '@/lib/chat-data'
+import type { Attachment, Conversation, Member } from '@/lib/chat-data'
 import { firstName, formatBytes } from '@/lib/chat-format'
 import { Modal } from './modal'
 import { VoiceNote } from './voice-note'
 
-export type ConfirmRequest = { kind: 'block' | 'leave'; chat: Conversation }
+export type ConfirmRequest =
+  | { kind: 'block' | 'leave'; chat: Conversation }
+  | { kind: 'remove' | 'ban'; chat: Conversation; member: Member }
+
+function confirmCopy(request: ConfirmRequest) {
+  const chatName = request.chat.group ? request.chat.name : firstName(request.chat.name)
+  switch (request.kind) {
+    case 'block':
+      return {
+        title: `Block ${chatName}?`,
+        body: `${chatName} won’t be able to message you, and you won’t get notifications from this chat. You can unblock anytime from chat details.`,
+        action: `Block ${chatName}`,
+      }
+    case 'leave':
+      return {
+        title: `Leave ${chatName}?`,
+        body: 'You’ll stop receiving messages from this group. An admin can add you back with your PIN.',
+        action: 'Leave group',
+      }
+    case 'remove':
+      return {
+        title: `Remove ${request.member.name}?`,
+        body: `${request.member.name} will leave ${chatName} and stop getting its messages. An admin can add them back later.`,
+        action: 'Remove',
+      }
+    case 'ban':
+      return {
+        title: `Ban ${request.member.name}?`,
+        body: `${request.member.name} will be removed from ${chatName} and won’t be able to rejoin unless an admin unbans them.`,
+        action: 'Ban',
+      }
+  }
+}
 
 export function ConfirmDialog({ request, onClose, onConfirm }: { request: ConfirmRequest | null; onClose: () => void; onConfirm: (request: ConfirmRequest) => void }) {
-  const name = request ? (request.chat.group ? request.chat.name : firstName(request.chat.name)) : ''
-  const blocking = request?.kind === 'block'
+  const copy = request ? confirmCopy(request) : null
 
   return (
-    <Modal open={Boolean(request)} title={blocking ? `Block ${name}?` : `Leave ${name}?`} onClose={onClose} className="confirm-modal">
-      <p>
-        {blocking
-          ? `${name} won’t be able to message you, and you won’t get notifications from this chat. You can unblock anytime from chat details.`
-          : 'You’ll stop receiving messages from this group. Someone in the group can add you back with your PIN.'}
-      </p>
+    <Modal open={Boolean(request)} title={copy?.title ?? ''} onClose={onClose} className="confirm-modal">
+      <p>{copy?.body}</p>
       <div className="modal-actions">
         <button type="button" className="modal-secondary" onClick={onClose}>Cancel</button>
-        <button type="button" className="modal-danger" onClick={() => request && onConfirm(request)}>
-          {blocking ? `Block ${name}` : 'Leave group'}
-        </button>
+        <button type="button" className="modal-danger" onClick={() => request && onConfirm(request)}>{copy?.action}</button>
       </div>
     </Modal>
   )
@@ -34,10 +59,11 @@ type MediaDialogProps = {
   media: Attachment[]
   focused?: Attachment
   onFocus: (attachment?: Attachment) => void
+  onDownload: (attachment: Attachment) => void
   onClose: () => void
 }
 
-export function MediaDialog({ open, media, focused, onFocus, onClose }: MediaDialogProps) {
+export function MediaDialog({ open, media, focused, onFocus, onDownload, onClose }: MediaDialogProps) {
   const images = media.filter((item) => item.kind === 'image')
   const others = media.filter((item) => item.kind !== 'image')
 
@@ -45,10 +71,10 @@ export function MediaDialog({ open, media, focused, onFocus, onClose }: MediaDia
     <Modal open={open} title={focused ? focused.name : 'Shared media'} onClose={onClose} className="media-modal">
       {focused?.url ? (
         <div className="media-focus">
-          <img src={focused.url} alt={focused.name} />
+          <img src={focused.url} alt={focused.name} decoding="async" />
           <div className="modal-actions">
             <button type="button" className="modal-secondary" onClick={() => onFocus(undefined)}><ArrowLeft /> All media</button>
-            <a className="modal-primary" href={focused.url} target="_blank" rel="noopener noreferrer" download={focused.name}><Download /> Open original</a>
+            <button type="button" className="modal-primary" onClick={() => onDownload(focused)}><Download /> Download</button>
           </div>
         </div>
       ) : (
@@ -57,7 +83,7 @@ export function MediaDialog({ open, media, focused, onFocus, onClose }: MediaDia
             <div className="media-gallery">
               {images.map((image) => (
                 <button type="button" key={image.id} onClick={() => onFocus(image)} aria-label={`Open ${image.name}`} disabled={!image.url}>
-                  {image.url ? <img src={image.url} alt="" /> : <span>{image.name}</span>}
+                  {image.url ? <img src={image.url} alt="" width={72} height={72} loading="lazy" decoding="async" /> : <span>{image.name}</span>}
                 </button>
               ))}
             </div>
@@ -67,12 +93,16 @@ export function MediaDialog({ open, media, focused, onFocus, onClose }: MediaDia
               {others.map((item) => (
                 <li key={item.id}>
                   {item.kind === 'audio' ? (
-                    <VoiceNote attachment={item} />
+                    <VoiceNote attachment={item} onDownload={item.url ? () => onDownload(item) : undefined} />
                   ) : (
                     <>
                       <FileText />
                       <span><strong>{item.name}</strong><small>{formatBytes(item.size)}</small></span>
-                      {item.url ? <a href={item.url} target="_blank" rel="noopener noreferrer" download={item.name} aria-label={`Open ${item.name}`}><Download /></a> : <small>Sending…</small>}
+                      {item.url ? (
+                        <button type="button" className="media-download" onClick={() => onDownload(item)} aria-label={`Download ${item.name}`}><Download /></button>
+                      ) : (
+                        <small>Sending…</small>
+                      )}
                     </>
                   )}
                 </li>

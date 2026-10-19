@@ -2,9 +2,10 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { ArrowRight, Menu, X } from 'lucide-react'
 import { Show, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 const links = [
   { href: '/features', label: 'Features' },
@@ -15,7 +16,7 @@ const links = [
 ]
 
 type SiteNavProps = {
-  variant?: 'landing' | 'subpage' | 'converter' | 'contacts'
+  variant?: 'landing' | 'subpage' | 'converter' | 'contacts' | 'app'
   className?: string
 }
 
@@ -23,13 +24,22 @@ export function SiteNav({ variant = 'subpage', className = '' }: SiteNavProps) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const drawerId = useId()
+  const drawerRef = useRef<HTMLElement>(null)
+  const toggleRef = useRef<HTMLButtonElement>(null)
+  const wasOpen = useRef(false)
 
   useEffect(() => {
     setOpen(false)
   }, [pathname])
 
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      if (wasOpen.current) toggleRef.current?.focus()
+      wasOpen.current = false
+      return
+    }
+    wasOpen.current = true
+    const frame = window.requestAnimationFrame(() => drawerRef.current?.querySelector<HTMLElement>('.mobile-nav-links a')?.focus())
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false)
     }
@@ -37,6 +47,7 @@ export function SiteNav({ variant = 'subpage', className = '' }: SiteNavProps) {
     const previous = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => {
+      window.cancelAnimationFrame(frame)
       document.removeEventListener('keydown', onKeyDown)
       document.body.style.overflow = previous
     }
@@ -49,7 +60,10 @@ export function SiteNav({ variant = 'subpage', className = '' }: SiteNavProps) {
         ? 'landing-nav converter-nav'
         : variant === 'contacts'
           ? 'subpage-nav contacts-nav'
-          : 'subpage-nav'
+          : variant === 'app'
+            ? 'subpage-nav app-nav'
+            : 'subpage-nav'
+  const inApp = variant === 'app'
 
   const linksClass = variant === 'landing' || variant === 'converter' ? 'landing-links' : 'subpage-links'
 
@@ -72,6 +86,7 @@ export function SiteNav({ variant = 'subpage', className = '' }: SiteNavProps) {
           ))}
         </nav>
         <div className="landing-nav-actions site-nav-actions">
+          <ThemeToggle className="nav-theme-toggle" />
           <Show when="signed-out">
             <SignInButton fallbackRedirectUrl="/chat">
               <button type="button" className="landing-login">Sign in</button>
@@ -82,13 +97,16 @@ export function SiteNav({ variant = 'subpage', className = '' }: SiteNavProps) {
               </button>
             </SignUpButton>
           </Show>
-          <Show when="signed-in">
-            <Link href="/chat" className="landing-nav-cta">
-              Open chat <ArrowRight data-icon="inline-end" />
-            </Link>
-            <span className="nav-user"><UserButton /></span>
-          </Show>
+          {!inApp && (
+            <Show when="signed-in">
+              <Link href="/chat" className="landing-nav-cta">
+                Open chat <ArrowRight data-icon="inline-end" />
+              </Link>
+              <span className="nav-user"><UserButton /></span>
+            </Show>
+          )}
           <button
+            ref={toggleRef}
             type="button"
             className="nav-toggle"
             aria-label={open ? 'Close menu' : 'Open menu'}
@@ -107,10 +125,11 @@ export function SiteNav({ variant = 'subpage', className = '' }: SiteNavProps) {
         onClick={() => setOpen(false)}
       />
       <nav
+        ref={drawerRef}
         id={drawerId}
         className={`mobile-nav-drawer ${open ? 'is-open' : ''}`}
         aria-label="Mobile"
-        aria-hidden={!open}
+        inert={!open}
       >
         <div className="mobile-nav-drawer-top">
           <Link href="/" className="landing-brand" onClick={() => setOpen(false)}>
@@ -133,6 +152,10 @@ export function SiteNav({ variant = 'subpage', className = '' }: SiteNavProps) {
             </Link>
           ))}
         </div>
+        <div className="mobile-nav-theme">
+          <span>Theme</span>
+          <ThemeToggle />
+        </div>
         <Show when="signed-out">
           <div className="mobile-nav-auth">
             <SignInButton fallbackRedirectUrl="/chat">
@@ -145,11 +168,13 @@ export function SiteNav({ variant = 'subpage', className = '' }: SiteNavProps) {
             </SignUpButton>
           </div>
         </Show>
-        <Show when="signed-in">
-          <Link href="/chat" className="landing-nav-cta mobile-nav-cta" onClick={() => setOpen(false)}>
-            Open chat <ArrowRight data-icon="inline-end" />
-          </Link>
-        </Show>
+        {!inApp && (
+          <Show when="signed-in">
+            <Link href="/chat" className="landing-nav-cta mobile-nav-cta" onClick={() => setOpen(false)}>
+              Open chat <ArrowRight data-icon="inline-end" />
+            </Link>
+          </Show>
+        )}
       </nav>
     </>
   )

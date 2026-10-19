@@ -1,18 +1,22 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useQuery } from 'convex/react'
-import { ArrowRight, Globe2, Search, UserPlus, Users, X } from 'lucide-react'
+import { ArrowRight, Globe2, Link2, ScanQrCode, Search, UserPlus, Users, X } from 'lucide-react'
 import { api } from '@/convex/_generated/api'
 import { colorFor, initialsFor, normalizePin, pinPattern } from '@/lib/chat-data'
+import { parseInviteInput } from '@/lib/invite'
 import { Avatar } from './avatar'
 import { Modal } from './modal'
 
 type NewChatDialogProps = {
   open: boolean
+  initialTab?: 'direct' | 'group'
   onClose: () => void
   onStartDirect: (pin: string) => Promise<boolean>
   onCreateGroup: (name: string, pins: string[]) => Promise<boolean>
+  onScanQr: () => void
+  onOpenInvite: (code: string) => void
 }
 
 function usePinLookup(value: string) {
@@ -22,8 +26,12 @@ function usePinLookup(value: string) {
   return { pin, valid, result, loading: valid && result === undefined }
 }
 
-export function NewChatDialog({ open, onClose, onStartDirect, onCreateGroup }: NewChatDialogProps) {
-  const [tab, setTab] = useState<'direct' | 'group'>('direct')
+export function NewChatDialog({ open, initialTab = 'direct', onClose, onStartDirect, onCreateGroup, onScanQr, onOpenInvite }: NewChatDialogProps) {
+  const [tab, setTab] = useState<'direct' | 'group'>(initialTab)
+
+  useEffect(() => {
+    if (open) setTab(initialTab)
+  }, [open, initialTab])
   const [pinInput, setPinInput] = useState('')
   const [groupName, setGroupName] = useState('')
   const [members, setMembers] = useState<{ pin: string; name: string }[]>([])
@@ -62,7 +70,10 @@ export function NewChatDialog({ open, onClose, onStartDirect, onCreateGroup }: N
     if (ok) close()
   }
 
-  const lookupStatus = !pinInput.trim()
+  const pasted = parseInviteInput(pinInput)
+  const pastedInvite = tab === 'direct' && pasted?.kind === 'invite' ? pasted.code : null
+
+  const lookupStatus = !pinInput.trim() || pastedInvite
     ? null
     : !lookup.valid
       ? 'PINs look like AFJ-7K2P.'
@@ -108,8 +119,25 @@ export function NewChatDialog({ open, onClose, onStartDirect, onCreateGroup }: N
             aria-invalid={Boolean(lookupStatus && lookup.valid && !lookup.loading)}
             onChange={(event) => setPinInput(event.target.value)}
           />
+          {tab === 'direct' && (
+            <button type="button" className="pin-field-scan" onClick={() => { close(); onScanQr() }} aria-label="Scan a QR code">
+              <ScanQrCode /> <span>Scan QR</span>
+            </button>
+          )}
         </div>
         {lookupStatus && <p className="field-hint" role="status">{lookupStatus}</p>}
+        {pastedInvite && (
+          <div className="contact-pick">
+            <span className="contact-pick-icon"><Link2 /></span>
+            <span>
+              <strong>That’s an invite link</strong>
+              <small>Open it to see who sent it before you connect.</small>
+            </span>
+            <button type="button" className="modal-primary" onClick={() => { close(); onOpenInvite(pastedInvite) }}>
+              Open invite <ArrowRight />
+            </button>
+          </div>
+        )}
         {lookup.result && !lookup.result.isSelf && (
           <div className="contact-pick">
             <Avatar initials={initialsFor(lookup.result.name)} color={colorFor(lookup.result._id)} imageUrl={lookup.result.imageUrl} small />

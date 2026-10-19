@@ -1,11 +1,11 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Pause, Play } from 'lucide-react'
+import { Download, Pause, Play } from 'lucide-react'
 import type { Attachment } from '@/lib/chat-data'
 import { formatDuration } from '@/lib/chat-format'
 
-export function VoiceNote({ attachment }: { attachment: Attachment }) {
+export function VoiceNote({ attachment, onDownload }: { attachment: Attachment; onDownload?: () => void }) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [playing, setPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -43,6 +43,9 @@ export function VoiceNote({ attachment }: { attachment: Attachment }) {
         <span style={{ width: `${progress * 100}%` }} />
       </div>
       <span className="voice-time">{formatDuration(playing || elapsed ? elapsed : duration)}</span>
+      {onDownload && (
+        <button type="button" className="voice-download" aria-label="Download voice message" onClick={onDownload}><Download /></button>
+      )}
       {attachment.url && (
         <audio
           ref={audioRef}

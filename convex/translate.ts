@@ -1,7 +1,7 @@
 import { v } from 'convex/values'
 import { internal } from './_generated/api'
 import { env, internalAction } from './_generated/server'
-import { deeplTarget } from './lib/languages'
+import { deeplRequestBody, deeplTarget, languageFromDeepl } from './lib/languages'
 
 function deeplEndpoint(key: string) {
   return key.endsWith(':fx') ? 'https://api-free.deepl.com/v2/translate' : 'https://api.deepl.com/v2/translate'
@@ -16,8 +16,8 @@ export const translateMessage = internalAction({
 
     for (const language of job.languages) {
       const target = deeplTarget(language)
-      const save = (status: 'done' | 'unsupported' | 'failed', text?: string) =>
-        ctx.runMutation(internal.translations.save, { messageId, language, version: job.version, status, text })
+      const save = (status: 'done' | 'same' | 'unsupported' | 'failed', text?: string, detectedLanguage?: string) =>
+        ctx.runMutation(internal.translations.save, { messageId, language, version: job.version, status, text, detectedLanguage })
 
       if (!key) {
         console.warn('DEEPL_API_KEY is not set; skipping translation.')
@@ -32,7 +32,7 @@ export const translateMessage = internalAction({
       const response = await fetch(deeplEndpoint(key), {
         method: 'POST',
         headers: { Authorization: `DeepL-Auth-Key ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: [job.body], target_lang: target }),
+        body: JSON.stringify(deeplRequestBody(job.body, job.sourceLanguage, language)),
       })
       const traceId = response.headers.get('x-trace-id')
 
@@ -46,9 +46,11 @@ export const translateMessage = internalAction({
         continue
       }
 
-      const data = (await response.json()) as { translations?: { text?: string }[] }
-      const text = data.translations?.[0]?.text
-      await save(text ? 'done' : 'failed', text)
+      const data = (await response.json()) as { translations?: { text?: string; detected_source_language?: string }[] }
+      const result = data.translations?.[0]
+      const detectedLanguage = languageFromDeepl(result?.detected_source_language)
+      if (detectedLanguage === language) await save('same', undefined, detectedLanguage)
+      else await save(result?.text ? 'done' : 'failed', result?.text, detectedLanguage)
     }
     return null
   },

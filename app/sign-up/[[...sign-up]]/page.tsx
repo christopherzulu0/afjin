@@ -1,5 +1,8 @@
 import Link from 'next/link'
 import { SignUp } from '@clerk/nextjs'
+import { pageMetadata } from '@/lib/site'
+
+export const metadata = pageMetadata({ title: 'Create your account', description: 'Create a free afjini account.', path: '/sign-up', noIndex: true })
 
 export default function SignUpPage() {
   return (
@@ -9,6 +12,9 @@ export default function SignUpPage() {
         <span>afjini</span>
       </Link>
       <SignUp />
+      <p className="auth-legal">
+        By continuing you agree to the <Link href="/terms">Terms &amp; Conditions</Link> and <Link href="/privacy/policy">Privacy Policy</Link>.
+      </p>
     </main>
   )
 }

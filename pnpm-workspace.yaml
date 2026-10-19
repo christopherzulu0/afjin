@@ -5,4 +5,5 @@ minimumReleaseAgeExclude:
   - next
 
 allowBuilds:
+  core-js: true
   esbuild: true
