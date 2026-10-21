@@ -2,13 +2,14 @@
 
 import dynamic from 'next/dynamic'
 import { Suspense } from 'react'
+import { BrandMark } from '@/components/brand-mark'
 import { SiteNav } from '@/components/site-nav'
 
 function ChatLoading() {
   return (
     <main className="app-shell chat-loading" aria-busy="true">
       <div className="chat-loading-card">
-        <div className="brand-mark">A</div>
+        <BrandMark />
         <span>Loading your conversations…</span>
       </div>
     </main>

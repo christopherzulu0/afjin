@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { Download } from 'lucide-react'
 
-const colors = { dark: '#061f28', light: '#f6ecd9' }
+const colors = { dark: '#1a1416', light: '#ffffff' }
 
 type QrCodeProps = { value: string; label: string; fileName?: string; className?: string }
 

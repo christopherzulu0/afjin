@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { ArrowRight, ArrowUp } from 'lucide-react'
+import { BrandMark } from '@/components/brand-mark'
 
 type SiteFooterProps = {
   tagline?: string
@@ -46,7 +47,7 @@ export function SiteFooter({
       <div className="footer-top">
         <div className="footer-about">
           <Link href="/" className="footer-brand">
-            <span className="brand-mark" aria-hidden="true">A</span>
+            <BrandMark />
             <span>
               <strong>afjini</strong>
               <span className="footer-tagline">{tagline}</span>

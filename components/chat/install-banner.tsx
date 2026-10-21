@@ -15,7 +15,7 @@ export function InstallBanner({ hidden, overChat, onIosHelp }: InstallBannerProp
 
   return (
     <div className={`install-banner ${overChat ? 'is-over-chat' : ''}`} role="dialog" aria-labelledby="install-banner-title" aria-describedby="install-banner-detail">
-      <img src="/icons/192" alt="" width={44} height={44} decoding="async" />
+      <img src="/icons/192.png" alt="" width={44} height={44} decoding="async" />
       <div className="install-banner-copy">
         <strong id="install-banner-title">Install afjini</strong>
         <small id="install-banner-detail">Open it from your home screen and get message and call notifications.</small>

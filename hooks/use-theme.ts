@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useSyncExternalStore } from 'react'
-import { THEME_STORAGE_KEY, applyTheme, readPreference, type ThemePreference } from '@/lib/theme'
+import { DEFAULT_THEME, THEME_STORAGE_KEY, applyTheme, readPreference, type ThemePreference } from '@/lib/theme'
 
 const listeners = new Set<() => void>()
 
@@ -30,11 +30,10 @@ function subscribe(listener: () => void) {
 }
 
 export function useTheme() {
-  const preference = useSyncExternalStore<ThemePreference>(subscribe, readPreference, () => 'system')
+  const preference = useSyncExternalStore<ThemePreference>(subscribe, readPreference, () => DEFAULT_THEME)
   const setPreference = useCallback((next: ThemePreference) => {
     try {
-      if (next === 'system') localStorage.removeItem(THEME_STORAGE_KEY)
-      else localStorage.setItem(THEME_STORAGE_KEY, next)
+      localStorage.setItem(THEME_STORAGE_KEY, next)
     } catch {}
     applyTheme(next)
     notify()

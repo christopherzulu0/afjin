@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAction, useConvexConnectionState, useMutation, useQuery } from 'convex/react'
 import { Ban, ChevronDown, ChevronUp, Globe2, Search, WifiOff, X } from 'lucide-react'
+import { BrandMark } from '@/components/brand-mark'
 import { api } from '@/convex/_generated/api'
 import type { Id } from '@/convex/_generated/dataModel'
 import {
@@ -659,7 +660,7 @@ export default function ChatApp() {
     return (
       <main className="app-shell chat-loading" aria-busy="true">
         <div className="chat-loading-card">
-          <div className="brand-mark">A</div>
+          <BrandMark />
           <span>Connecting securely…</span>
         </div>
       </main>

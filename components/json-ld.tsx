@@ -18,7 +18,7 @@ export function siteGraph(): JsonObject {
     '@id': ORGANIZATION_ID,
     name: SITE_NAME,
     url: SITE_URL,
-    logo: absoluteUrl('/icons/512'),
+    logo: absoluteUrl('/icons/512.png'),
   }
   if (!LEGAL.email.startsWith('[')) organization.email = LEGAL.email
 

@@ -10,6 +10,7 @@ import { useDraft } from '@/lib/draft-store'
 import { useMenu } from '@/hooks/use-menu'
 import { useInstallPrompt } from '@/hooks/use-install-prompt'
 import { useSwipeToClose } from '@/hooks/use-swipe-to-close'
+import { BrandMark } from '@/components/brand-mark'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Avatar } from './avatar'
 
@@ -116,7 +117,7 @@ export function Sidebar({
     <aside ref={asideRef} className={`sidebar ${mobileVisible ? 'mobile-visible' : ''}`} aria-label="Conversations">
       <div className="brand-row">
         <Link href="/" className="brand-link" aria-label="afjini home">
-          <div className="brand-mark">A</div>
+          <BrandMark />
           <span className="brand-name">afjini</span>
         </Link>
         <button className="icon-button sidebar-close" aria-label="Close conversations" onClick={onClose}><X /></button>

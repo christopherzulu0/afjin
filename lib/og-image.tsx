@@ -1,4 +1,7 @@
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { ImageResponse } from 'next/og'
+import { BRAND_MARK_SRC } from '@/components/brand-mark'
 
 export const OG_SIZE = { width: 1200, height: 630 }
 export const OG_CONTENT_TYPE = 'image/png'
@@ -50,8 +53,21 @@ const BUBBLES = [
   { text: 'Bonjour, à tout à l’heure !', align: 'flex-start' as const, mine: false },
 ]
 
+let markDataUrl: Promise<string> | null = null
+
+function loadMark() {
+  markDataUrl ??= readFile(join(process.cwd(), 'public', BRAND_MARK_SRC))
+    .then((file) => `data:image/png;base64,${file.toString('base64')}`)
+    .catch((error: unknown) => {
+      markDataUrl = null
+      throw error
+    })
+  return markDataUrl
+}
+
 /** A 1200×630 share card in afjini's colours. */
-export function renderOgImage({ eyebrow, title, subtitle }: OgPage) {
+export async function renderOgImage({ eyebrow, title, subtitle }: OgPage) {
+  const mark = await loadMark()
   return new ImageResponse(
     (
       <div
@@ -60,35 +76,20 @@ export function renderOgImage({ eyebrow, title, subtitle }: OgPage) {
           width: '100%',
           height: '100%',
           padding: '64px 72px',
-          background: 'radial-gradient(circle at 88% 8%, rgba(226,184,92,0.28), rgba(226,184,92,0) 38%), linear-gradient(160deg, #061F28 0%, #0A2D34 55%, #061F28 100%)',
-          color: '#F6ECD9',
+          background: 'radial-gradient(circle at 88% 8%, rgba(196,40,46,0.16), rgba(196,40,46,0) 38%), linear-gradient(160deg, #FFFFFF 0%, #F6F4F4 55%, #FFFFFF 100%)',
+          color: '#1A1416',
           fontFamily: 'sans-serif',
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', width: 680 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 64,
-                height: 64,
-                borderRadius: 18,
-                background: 'linear-gradient(180deg, #F0C467, #C89536)',
-                color: '#061F28',
-                fontSize: 36,
-                fontWeight: 700,
-              }}
-            >
-              A
-            </div>
+            <img src={mark} alt="" width={64} height={64} style={{ borderRadius: 18 }} />
             <div style={{ display: 'flex', fontSize: 36, fontWeight: 700, letterSpacing: -1 }}>afjini</div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <div style={{ display: 'flex', color: '#E2B85C', fontSize: 24, fontWeight: 700, letterSpacing: 3, textTransform: 'uppercase' }}>{eyebrow}</div>
+            <div style={{ display: 'flex', color: '#A3161C', fontSize: 24, fontWeight: 700, letterSpacing: 3, textTransform: 'uppercase' }}>{eyebrow}</div>
             <div style={{ display: 'flex', fontSize: 66, fontWeight: 700, lineHeight: 1.06, letterSpacing: -2 }}>{title}</div>
-            <div style={{ display: 'flex', color: '#D2CBBD', fontSize: 28, lineHeight: 1.35 }}>{subtitle}</div>
+            <div style={{ display: 'flex', color: '#4A4245', fontSize: 28, lineHeight: 1.35 }}>{subtitle}</div>
           </div>
         </div>
         <div style={{ display: 'flex', flex: 1, flexDirection: 'column', justifyContent: 'center', gap: 18, paddingLeft: 40 }}>
@@ -100,8 +101,9 @@ export function renderOgImage({ eyebrow, title, subtitle }: OgPage) {
                   maxWidth: 330,
                   padding: '16px 20px',
                   borderRadius: bubble.mine ? '22px 6px 22px 22px' : '6px 22px 22px 22px',
-                  background: bubble.mine ? 'linear-gradient(180deg, #F0C467, #C89536)' : '#123F43',
-                  color: bubble.mine ? '#061F28' : '#F6ECD9',
+                  background: bubble.mine ? 'linear-gradient(180deg, #C21F26, #7A0F14)' : '#FFFFFF',
+                  border: bubble.mine ? '1px solid transparent' : '1px solid rgba(122,15,20,0.14)',
+                  color: bubble.mine ? '#FFFFFF' : '#1A1416',
                   fontSize: 24,
                   lineHeight: 1.3,
                 }}

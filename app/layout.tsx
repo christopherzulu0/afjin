@@ -33,20 +33,10 @@ export const metadata: Metadata = {
   appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: 'black-translucent' },
   icons: {
     icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
+      { url: '/brand/favicon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icons/192.png', sizes: '192x192', type: 'image/png' },
     ],
-    apple: '/apple-icon.png',
+    apple: '/brand/apple-icon.png',
   },
 }
 
@@ -56,10 +46,7 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
   interactiveWidget: 'resizes-content',
   colorScheme: 'dark light',
-  themeColor: [
-    { media: '(prefers-color-scheme: dark)', color: THEME_COLORS.dark },
-    { media: '(prefers-color-scheme: light)', color: THEME_COLORS.light },
-  ],
+  themeColor: THEME_COLORS.dark,
 }
 
 const clerkAppearance = {

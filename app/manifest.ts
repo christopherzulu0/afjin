@@ -16,9 +16,9 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: THEME_COLORS.dark,
     categories: ['social', 'communication'],
     icons: [
-      { src: '/icons/192', sizes: '192x192', type: 'image/png', purpose: 'any' },
-      { src: '/icons/512', sizes: '512x512', type: 'image/png', purpose: 'any' },
-      { src: '/icons/maskable', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      { src: '/icons/192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: '/icons/512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: '/icons/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
   }
 }

@@ -7,9 +7,8 @@ export const metadata = pageMetadata({ title: 'Sign in', description: 'Sign in t
 export default function SignInPage() {
   return (
     <main className="auth-page">
-      <Link href="/" className="landing-brand auth-brand">
-        <span className="brand-mark">A</span>
-        <span>afjini</span>
+      <Link href="/" className="auth-brand" aria-label="afjini home">
+        <img src="/brand/emblem.webp" alt="" className="auth-emblem" width={360} height={240} />
       </Link>
       <SignIn />
     </main>

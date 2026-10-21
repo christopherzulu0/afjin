@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useId, useRef, useState } from 'react'
 import { ArrowRight, Menu, X } from 'lucide-react'
 import { Show, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs'
+import { BrandMark } from '@/components/brand-mark'
 import { ThemeToggle } from '@/components/theme-toggle'
 
 const links = [
@@ -71,7 +72,7 @@ export function SiteNav({ variant = 'subpage', className = '' }: SiteNavProps) {
     <>
       <header className={`${navClass} site-nav ${className}`.trim()}>
         <Link href="/" className="landing-brand">
-          <span className="brand-mark">A</span>
+          <BrandMark />
           <span>afjini</span>
         </Link>
         <nav className={`${linksClass} desktop-nav-links`} aria-label="Primary">
@@ -133,7 +134,7 @@ export function SiteNav({ variant = 'subpage', className = '' }: SiteNavProps) {
       >
         <div className="mobile-nav-drawer-top">
           <Link href="/" className="landing-brand" onClick={() => setOpen(false)}>
-            <span className="brand-mark">A</span>
+            <BrandMark />
             <span>afjini</span>
           </Link>
           <button type="button" className="nav-toggle" aria-label="Close menu" onClick={() => setOpen(false)}>

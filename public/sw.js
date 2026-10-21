@@ -1,6 +1,6 @@
-const CACHE = 'afjini-shell-v1'
+const CACHE = 'afjini-shell-v2'
 const OFFLINE_URL = '/offline.html'
-const PRECACHE = [OFFLINE_URL, '/icon.svg', '/icons/192']
+const PRECACHE = [OFFLINE_URL, '/icons/192.png']
 // Dev builds reuse chunk URLs, so only cache static assets on real deployments.
 const CACHE_STATIC = !['localhost', '127.0.0.1'].includes(self.location.hostname)
 
@@ -62,8 +62,7 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || 'You have a new message',
-      icon: '/icon.svg',
-      badge: '/icon-dark-32x32.png',
+      icon: '/icons/192.png',
       tag: data.tag,
       renotify: Boolean(data.tag),
       requireInteraction: Boolean(data.urgent),

@@ -2,23 +2,24 @@ export type ThemePreference = 'system' | 'light' | 'dark'
 export type ResolvedTheme = 'light' | 'dark'
 
 export const THEME_STORAGE_KEY = 'afjini:theme'
-export const THEME_COLORS: Record<ResolvedTheme, string> = { dark: '#061f28', light: '#f7f1e6' }
+export const DEFAULT_THEME: ThemePreference = 'dark'
+export const THEME_COLORS: Record<ResolvedTheme, string> = { dark: '#0b0809', light: '#f6f4f4' }
 
-/** Runs before first paint so the page never flashes the wrong theme. */
-export const themeBootScript = `(function(){try{var p=localStorage.getItem('${THEME_STORAGE_KEY}');var t=p==='light'||p==='dark'?p:(window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.dataset.theme=t;}catch(e){document.documentElement.dataset.theme='dark';}})();`
+/** Runs before first paint so the page never flashes the wrong theme. Dark unless the person chose otherwise. */
+export const themeBootScript = `(function(){var t='dark';try{var p=localStorage.getItem('${THEME_STORAGE_KEY}');t=p==='light'?'light':p==='system'&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}catch(e){}document.documentElement.dataset.theme=t;var c=t==='dark'?'${THEME_COLORS.dark}':'${THEME_COLORS.light}';var s=function(){document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.content=c;});};s();document.addEventListener('DOMContentLoaded',s);})();`
 
 export function readPreference(): ThemePreference {
   try {
     const value = localStorage.getItem(THEME_STORAGE_KEY)
-    return value === 'light' || value === 'dark' ? value : 'system'
+    return value === 'light' || value === 'dark' || value === 'system' ? value : DEFAULT_THEME
   } catch {
-    return 'system'
+    return DEFAULT_THEME
   }
 }
 
 export function resolveTheme(preference: ThemePreference): ResolvedTheme {
   if (preference !== 'system') return preference
-  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
 export function applyTheme(preference: ThemePreference) {
